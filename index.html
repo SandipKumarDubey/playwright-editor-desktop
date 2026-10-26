@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Playwright Editor</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #6b7385;
+    --border: #dfe3ea; --accent: #2d8a4e; --accent-text: #fff; --code-bg: #fbfbfd;
+    --gutter: #f0f2f6; --chip: #eef1f6; --chip-hover: #e2e7f0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --panel: #1a1e26; --text: #e6e9f0; --muted: #8b93a7;
+      --border: #2b303b; --accent: #3fb36a; --accent-text: #0b1a10; --code-bg: #151921;
+      --gutter: #1a1e26; --chip: #252a35; --chip-hover: #2f3543;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #6b7385;
+    --border: #dfe3ea; --accent: #2d8a4e; --accent-text: #fff; --code-bg: #fbfbfd;
+    --gutter: #f0f2f6; --chip: #eef1f6; --chip-hover: #e2e7f0;
+    --c-kw: #8250df; --c-str: #0a7a3d; --c-num: #b35900; --c-com: #7b8394;
+    --c-fn: #0b6bcb; --c-prop: #1f6f8b; --c-bi: #c2410c; --c-re: #b0306f;
+  }
+  :root[data-theme="dark"] {
+    --bg: #12151b; --panel: #1a1e26; --text: #e6e9f0; --muted: #8b93a7;
+    --border: #2b303b; --accent: #3fb36a; --accent-text: #0b1a10; --code-bg: #151921;
+    --gutter: #1a1e26; --chip: #252a35; --chip-hover: #2f3543;
+    --c-kw: #c792ea; --c-str: #9ccc65; --c-num: #f78c6c; --c-com: #7f8aa3;
+    --c-fn: #82aaff; --c-prop: #89ddff; --c-bi: #ffcb6b; --c-re: #f07178;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 16px; font-size: 14px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .bar .spacer { flex: 1; }
+  button, select, input[type=text] {
+    font: inherit; color: var(--text); background: var(--panel);
+    border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; cursor: pointer;
+  }
+  input[type=text] { cursor: text; width: 170px; }
+  button:hover { background: var(--chip-hover); }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+  button.primary:hover { filter: brightness(1.08); }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; background: var(--panel); }
+  .seg button.on { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+  .snips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .snips button { background: var(--chip); border: 0; padding: 5px 10px; font-size: 13px; border-radius: 999px; }
+  .snips b { font-size: 12px; color: var(--muted); font-weight: 600; align-self: center; margin-right: 2px; }
+  .editor { display: flex; background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden; height: 440px; }
+  .gutter { background: var(--gutter); color: var(--muted); text-align: right; padding: 12px 8px 12px 12px;
+    font: var(--fs, 13px)/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; user-select: none;
+    overflow: hidden; white-space: pre; border-right: 1px solid var(--border); min-width: 44px; }
+  .code-area { position: relative; flex: 1; min-width: 0; }
+  #hl, textarea { position: absolute; inset: 0; margin: 0; border: 0; padding: 12px;
+    font: var(--fs, 13px)/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    tab-size: 2; white-space: pre; letter-spacing: 0; word-spacing: 0; }
+  #hl { overflow: hidden; pointer-events: none; color: var(--text); }
+  textarea { outline: 0; resize: none; background: transparent; overflow: auto;
+    color: transparent; caret-color: var(--text); -webkit-text-fill-color: transparent; }
+  textarea::selection { background: rgba(80, 140, 255, .30); }
+  .kw { color: var(--c-kw); font-weight: 600; } .str { color: var(--c-str); } .num { color: var(--c-num); }
+  .com { color: var(--c-com); font-style: italic; } .fn { color: var(--c-fn); } .prop { color: var(--c-prop); }
+  .bi { color: var(--c-bi); } .re { color: var(--c-re); }
+  :root { --c-kw: #8250df; --c-str: #0a7a3d; --c-num: #b35900; --c-com: #7b8394;
+    --c-fn: #0b6bcb; --c-prop: #1f6f8b; --c-bi: #c2410c; --c-re: #b0306f; }
+  @media (prefers-color-scheme: dark) {
+    :root { --c-kw: #c792ea; --c-str: #9ccc65; --c-num: #f78c6c; --c-com: #7f8aa3;
+      --c-fn: #82aaff; --c-prop: #89ddff; --c-bi: #ffcb6b; --c-re: #f07178; }
+  }
+  .runbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
+  .runbar input[type=text] { flex: 1 1 260px; width: auto; min-width: 180px; }
+  .runbar label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+  .runbar select { padding: 7px 8px; }
+  button.stop { border-color: #c0392b; color: #c0392b; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .rstate { font-size: 12.5px; color: var(--muted); flex-basis: 100%; }
+  .rstate.ok { color: var(--accent); }
+  .out { margin-top: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .out-head { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .out-head h2 { font-size: 14px; margin: 0; }
+  .chip { font-size: 12px; padding: 2px 9px; border-radius: 999px; background: var(--chip); color: var(--muted); font-weight: 600; }
+  .chip.run { background: #2563eb; color: #fff; } .chip.pass { background: #1f7a45; color: #fff; }
+  .chip.fail { background: #c0392b; color: #fff; }
+  .out pre { margin: 0; padding: 12px; max-height: 320px; overflow: auto; background: var(--code-bg);
+    font: var(--fs, 13px)/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+  .shots { display: flex; flex-wrap: wrap; gap: 10px; padding: 12px; border-top: 1px solid var(--border); }
+  .shots a { display: block; width: 220px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--code-bg); }
+  .shots img { display: block; width: 100%; }
+  .shots span { display: block; font-size: 11.5px; color: var(--muted); padding: 4px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .status { display: flex; justify-content: space-between; color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+  .run { margin-top: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .run h2 { font-size: 14px; margin: 0 0 8px; }
+  .cmd { display: flex; gap: 8px; align-items: center; margin: 6px 0;
+    font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .cmd code { flex: 1; background: var(--chip); padding: 6px 10px; border-radius: 6px; overflow-x: auto; white-space: nowrap; }
+  .cmd button { padding: 4px 10px; font-size: 12px; }
+  .note { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text);
+    color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Playwright Editor</h1>
+  <p class="sub">Write Playwright code, point it at a website, and run it on your machine.</p>
+
+  <div class="bar">
+    <div class="seg" role="tablist" aria-label="Language">
+      <button id="lang-js" class="on">JavaScript</button>
+      <button id="lang-ts">TypeScript</button>
+      <button id="lang-py">Python</button>
+    </div>
+    <input type="text" id="fname" aria-label="File name" placeholder="file name">
+    <button id="open" title="Open a .js, .ts or .py file (or drop it on the editor)">Open</button>
+    <span class="spacer"></span>
+    <span class="seg" aria-label="Font size">
+      <button id="fs-down" title="Smaller text">A&minus;</button>
+      <button id="fsval" disabled style="cursor:default;min-width:52px">13px</button>
+      <button id="fs-up" title="Larger text">A+</button>
+    </span>
+    <button id="theme" title="Toggle light/dark">Dark</button>
+    <input type="file" id="file" accept=".js,.ts,.py,.txt,.mjs,.cjs" hidden>
+    <button id="clear">Clear</button>
+    <button id="reset">Reset</button>
+    <button id="copy">Copy</button>
+    <button id="download" class="primary">Download</button>
+  </div>
+
+  <div class="runbar">
+    <input type="text" id="runurl" aria-label="Website URL" placeholder="Website to test, e.g. https://example.com (used as baseURL)">
+    <button id="goto" title="Insert a goto line for this URL at the cursor">Insert goto</button>
+    <select id="runbrowser" aria-label="Browser">
+      <option value="chromium">Chromium</option><option value="msedge">Microsoft Edge</option><option value="chrome">Google Chrome</option><option value="firefox">Firefox</option><option value="webkit">WebKit</option>
+    </select>
+    <label><input type="checkbox" id="runheaded"> Show browser</label>
+    <select id="runslow" aria-label="Slow motion" title="Slow motion (only helpful with Show browser)">
+      <option value="0">Normal speed</option><option value="250">Slow</option><option value="600">Slower</option><option value="1200">Slowest</option>
+    </select>
+    <button id="runbtn" class="primary" title="Run (Ctrl/Cmd+Enter)">&#9654; Run</button>
+    <button id="stopbtn" class="stop" hidden>Stop</button>
+    <div class="rstate" id="runstate">Checking for local runner&hellip;</div>
+  </div>
+
+  <div class="snips" id="snips"></div>
+
+  <div class="editor">
+    <div class="gutter" id="gutter">1</div>
+    <div class="code-area">
+      <pre id="hl" aria-hidden="true"></pre>
+      <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Code editor"></textarea>
+    </div>
+  </div>
+  <div class="status"><span id="pos">Ln 1, Col 1</span><span id="count"></span></div>
+  <p class="note">Shortcuts: Tab / Shift+Tab indent · Ctrl+/ comment · Ctrl+D duplicate line · Alt+↑/↓ move line · Ctrl+Enter run · Ctrl+S download · drop a file onto the editor to open it.</p>
+
+  <div class="out" id="outpanel" hidden>
+    <div class="out-head"><h2>Output</h2><span class="chip" id="chip">idle</span><span class="spacer" style="flex:1"></span>
+      <button id="outclear" style="padding:3px 10px;font-size:12px">Clear</button></div>
+    <pre id="out"></pre>
+    <div class="shots" id="shots" hidden></div>
+  </div>
+
+  <div class="run">
+    <h2>Run it outside the editor</h2>
+    <div id="cmds"></div>
+    <p class="note">Use <b>Run</b> above when this page is opened from the local server (<code>node server.js</code>). These commands are for running the downloaded file yourself.</p>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const code = $('#code'), gutter = $('#gutter');
+
+const TEMPLATES = {
+js: `const { test, expect } = require('@playwright/test');
+
+test('has title', async ({ page }) => {
+  await page.goto('https://playwright.dev/');
+  await expect(page).toHaveTitle(/Playwright/);
+});
+`,
+ts: `import { test, expect } from '@playwright/test';
+
+test('has title', async ({ page }) => {
+  await page.goto('https://playwright.dev/');
+  await expect(page).toHaveTitle(/Playwright/);
+});
+`,
+py: `from playwright.sync_api import Page, expect
+
+def test_has_title(page: Page):
+    page.goto("https://playwright.dev/")
+    expect(page).to_have_title(re.compile("Playwright"))
+`
+};
+TEMPLATES.py = "import re\n" + TEMPLATES.py;
+
+// [label, js/ts snippet, python snippet]
+const SNIPPETS = [
+  ['Test block', `test('my test', async ({ page }) => {\n  \n});\n`, `def test_my_test(page: Page):\n    pass\n`],
+  ['Go to URL', `await page.goto('https://example.com');\n`, `page.goto("https://example.com")\n`],
+  ['Click', `await page.getByRole('button', { name: 'Submit' }).click();\n`, `page.get_by_role("button", name="Submit").click()\n`],
+  ['Fill input', `await page.getByLabel('Email').fill('me@example.com');\n`, `page.get_by_label("Email").fill("me@example.com")\n`],
+  ['Press key', `await page.keyboard.press('Enter');\n`, `page.keyboard.press("Enter")\n`],
+  ['Select option', `await page.selectOption('select#country', 'India');\n`, `page.select_option("select#country", "India")\n`],
+  ['Check box', `await page.getByLabel('I agree').check();\n`, `page.get_by_label("I agree").check()\n`],
+  ['Locator by text', `const el = page.getByText('Welcome');\n`, `el = page.get_by_text("Welcome")\n`],
+  ['Expect visible', `await expect(page.getByText('Welcome')).toBeVisible();\n`, `expect(page.get_by_text("Welcome")).to_be_visible()\n`],
+  ['Expect text', `await expect(page.locator('h1')).toHaveText('Hello');\n`, `expect(page.locator("h1")).to_have_text("Hello")\n`],
+  ['Expect URL', `await expect(page).toHaveURL(/dashboard/);\n`, `expect(page).to_have_url(re.compile("dashboard"))\n`],
+  ['Wait for element', `await page.waitForSelector('#result');\n`, `page.wait_for_selector("#result")\n`],
+  ['Screenshot', `await page.screenshot({ path: 'shot.png', fullPage: true });\n`, `page.screenshot(path="shot.png", full_page=True)\n`],
+  ['Get text', `const text = await page.locator('h1').innerText();\nconsole.log(text);\n`, `text = page.locator("h1").inner_text()\nprint(text)\n`],
+  ['Loop rows', `const rows = page.locator('table tr');\nfor (let i = 0; i < await rows.count(); i++) {\n  console.log(await rows.nth(i).innerText());\n}\n`, `rows = page.locator("table tr")\nfor i in range(rows.count()):\n    print(rows.nth(i).inner_text())\n`],
+  ['Handle dialog', `page.on('dialog', d => d.accept());\n`, `page.on("dialog", lambda d: d.accept())\n`],
+  ['Upload file', `await page.setInputFiles('input[type=file]', 'file.pdf');\n`, `page.set_input_files("input[type=file]", "file.pdf")\n`],
+];
+
+const EXT = { js: 'spec.js', ts: 'spec.ts', py: 'py' };
+const DEFAULT_NAME = { js: 'example.spec.js', ts: 'example.spec.ts', py: 'test_example.py' };
+let lang = 'js';
+
+function store(k, v) { try { v === undefined ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} }
+function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.id); toast.id = setTimeout(() => t.classList.remove('show'), 1400);
+}
+
+const KW = {
+  js: 'const let var function async await return if else for while of in new class import export from require default try catch throw typeof instanceof true false null undefined this break continue switch case interface type extends implements as void',
+  py: 'def import from as return if elif else for while in not and or is class with try except finally raise lambda pass None True False yield assert del global lambda break continue async await'
+};
+const BI = {
+  js: 'page expect test browser context console describe Promise Math JSON process document window Array Object String Number',
+  py: 'page expect re self print len range str int list dict set open'
+};
+const toSet = s => new Set(s.split(/\s+/));
+const KWS = { js: toSet(KW.js), ts: toSet(KW.js), py: toSet(KW.py) };
+const BIS = { js: toSet(BI.js), ts: toSet(BI.js), py: toSet(BI.py) };
+const TOKEN = {
+  js: /(\/\/[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|('(?:\\.|[^'\\\n])*'?|"(?:\\.|[^"\\\n])*"?|`(?:\\[\s\S]|[^`\\])*`?)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_$][\w$]*)|(\/(?![*\/])(?:\\.|\[[^\]\n]*\]|[^\/\n\\\[])+\/[gimsuy]*)/g,
+  py: /(#[^\n]*)|("""[\s\S]*?(?:"""|$)|'''[\s\S]*?(?:'''|$)|'(?:\\.|[^'\\\n])*'?|"(?:\\.|[^"\\\n])*"?)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][\w]*)|(?!)()/g
+};
+TOKEN.ts = TOKEN.js;
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+function highlight() {
+  const src = code.value, re = new RegExp(TOKEN[lang].source, 'g');
+  let out = '', last = 0, m;
+  while ((m = re.exec(src))) {
+    out += esc(src.slice(last, m.index));
+    const t = m[0]; last = m.index + t.length;
+    let cls = '';
+    if (m[1] !== undefined) cls = 'com';
+    else if (m[2] !== undefined) cls = 'str';
+    else if (m[3] !== undefined) cls = 'num';
+    else if (m[4] !== undefined) {
+      const prev = src[m.index - 1], next = src.slice(last).match(/^\s*(.)/);
+      if (KWS[lang].has(t)) cls = 'kw';
+      else if (prev === '.') cls = next && next[1] === '(' ? 'fn' : 'prop';
+      else if (BIS[lang].has(t)) cls = 'bi';
+      else if (next && next[1] === '(') cls = 'fn';
+    } else if (m[5] !== undefined) {
+      const before = src.slice(0, m.index).trimEnd().slice(-1);
+      if (before === '' || '(,=:!&|?{};['.includes(before)) cls = 're';
+      else { out += esc('/'); last = m.index + 1; re.lastIndex = last; continue; }
+    }
+    out += cls ? '<span class="' + cls + '">' + esc(t) + '</span>' : esc(t);
+    if (re.lastIndex === m.index) re.lastIndex++;
+  }
+  out += esc(src.slice(last));
+  const hl = $('#hl'); hl.innerHTML = out + '\n';
+  hl.scrollTop = code.scrollTop; hl.scrollLeft = code.scrollLeft;
+}
+
+function updateGutter() {
+  highlight();
+  const n = code.value.split('\n').length;
+  let s = ''; for (let i = 1; i <= n; i++) s += i + '\n';
+  gutter.textContent = s.trimEnd();
+  gutter.scrollTop = code.scrollTop;
+  $('#count').textContent = n + ' lines · ' + code.value.length + ' chars';
+}
+function updatePos() {
+  const before = code.value.slice(0, code.selectionStart).split('\n');
+  $('#pos').textContent = 'Ln ' + before.length + ', Col ' + (before[before.length - 1].length + 1);
+}
+function onChange() { updateGutter(); updatePos(); store('pw-code-' + lang, code.value); }
+
+function renderSnips() {
+  const box = $('#snips'); box.innerHTML = '<b>Insert:</b>';
+  SNIPPETS.forEach(([label, jsCode, pyCode]) => {
+    const b = document.createElement('button'); b.textContent = label;
+    b.onclick = () => insert(lang === 'py' ? pyCode : jsCode);
+    box.appendChild(b);
+  });
+}
+function insert(text) {
+  const s = code.selectionStart, e = code.selectionEnd, v = code.value;
+  // indent snippet to match current line indentation
+  const lineStart = v.lastIndexOf('\n', s - 1) + 1;
+  const indent = (v.slice(lineStart, s).match(/^\s*/) || [''])[0];
+  const body = text.split('\n').map((l, i) => i === 0 || l === '' ? l : indent + l).join('\n');
+  code.focus();
+  replaceRange(s, e, body);
+}
+
+function renderCmds() {
+  const name = $('#fname').value || DEFAULT_NAME[lang];
+  const cmds = lang === 'py'
+    ? ['pip install pytest-playwright', 'playwright install', 'pytest ' + name + ' --headed']
+    : ['npm init playwright@latest', 'npx playwright test ' + name + ' --headed'];
+  $('#cmds').innerHTML = '';
+  cmds.forEach(c => {
+    const row = document.createElement('div'); row.className = 'cmd';
+    const el = document.createElement('code'); el.textContent = c;
+    const b = document.createElement('button'); b.textContent = 'Copy';
+    b.onclick = () => copyText(c);
+    row.append(el, b); $('#cmds').appendChild(row);
+  });
+}
+
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); }
+  catch (e) {
+    const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); ta.remove();
+  }
+  toast('Copied');
+}
+
+function setLang(l, initial) {
+  if (!initial) store('pw-code-' + lang, code.value);
+  lang = l; store('pw-lang', l);
+  ['js', 'ts', 'py'].forEach(x => $('#lang-' + x).classList.toggle('on', x === l));
+  code.value = load('pw-code-' + l) || TEMPLATES[l];
+  $('#fname').value = load('pw-name-' + l) || DEFAULT_NAME[l];
+  renderSnips(); renderCmds(); updateGutter(); updatePos();
+}
+
+['js', 'ts', 'py'].forEach(l => $('#lang-' + l).onclick = () => setLang(l));
+$('#fname').oninput = e => { store('pw-name-' + lang, e.target.value); renderCmds(); };
+$('#copy').onclick = () => copyText(code.value);
+$('#reset').onclick = () => { if (confirm('Replace the editor with the starter template?')) { code.value = TEMPLATES[lang]; onChange(); } };
+$('#download').onclick = () => {
+  let name = ($('#fname').value || DEFAULT_NAME[lang]).trim();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([code.value], { type: 'text/plain' }));
+  a.download = name; a.click(); URL.revokeObjectURL(a.href);
+};
+
+code.addEventListener('input', onChange);
+code.addEventListener('scroll', () => {
+  gutter.scrollTop = code.scrollTop;
+  $('#hl').scrollTop = code.scrollTop; $('#hl').scrollLeft = code.scrollLeft;
+});
+code.addEventListener('keyup', updatePos);
+code.addEventListener('click', updatePos);
+// ---- editing helpers (use execCommand so Ctrl+Z keeps working) ----
+function replaceRange(s, e, text, selS, selE) {
+  code.focus();
+  code.setSelectionRange(s, e);
+  let ok = false;
+  try { ok = text === '' ? (s === e || document.execCommand('delete')) : document.execCommand('insertText', false, text); } catch (_) {}
+  if (!ok) { code.setRangeText(text, s, e, 'end'); onChange(); }
+  const a = selS === undefined ? s + text.length : selS;
+  code.setSelectionRange(a, selE === undefined ? a : selE);
+  updatePos();
+}
+function lineBounds() {
+  const v = code.value, s = code.selectionStart, en = code.selectionEnd;
+  const ls = v.lastIndexOf('\n', s - 1) + 1;
+  let le = v.indexOf('\n', en); if (le < 0) le = v.length;
+  return [ls, le, s, en];
+}
+function toggleComment() {
+  const mark = lang === 'py' ? '#' : '//';
+  const [ls, le, s, en] = lineBounds();
+  const lines = code.value.slice(ls, le).split('\n');
+  const all = lines.filter(l => l.trim()).every(l => l.trimStart().startsWith(mark));
+  const out = lines.map(l => {
+    if (!l.trim()) return l;
+    const ind = l.match(/^\s*/)[0], rest = l.slice(ind.length);
+    return all ? ind + rest.replace(new RegExp('^' + mark + ' ?'), '') : ind + mark + ' ' + rest;
+  }).join('\n');
+  const delta = out.length - (le - ls);
+  if (s === en) { const c = Math.max(ls, s + delta); replaceRange(ls, le, out, c, c); }
+  else replaceRange(ls, le, out, ls, ls + out.length);
+}
+function duplicateLine() {
+  const [ls, le, s, en] = lineBounds();
+  const block = code.value.slice(ls, le);
+  replaceRange(le, le, '\n' + block, s + block.length + 1, en + block.length + 1);
+}
+function moveLine(dir) {
+  const v = code.value, [ls, le, s, en] = lineBounds();
+  if (dir < 0 && ls === 0) return;
+  if (dir > 0 && le >= v.length) return;
+  const block = v.slice(ls, le);
+  if (dir < 0) {
+    const ps = v.lastIndexOf('\n', ls - 2) + 1, prev = v.slice(ps, ls - 1);
+    replaceRange(ps, le, block + '\n' + prev, s - prev.length - 1, en - prev.length - 1);
+  } else {
+    let ne = v.indexOf('\n', le + 1); if (ne < 0) ne = v.length;
+    const next = v.slice(le + 1, ne);
+    replaceRange(ls, ne, next + '\n' + block, s + next.length + 1, en + next.length + 1);
+  }
+}
+
+const PAIRS = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'", '`': '`' };
+code.addEventListener('keydown', e => {
+  const unit = lang === 'py' ? '    ' : '  ';
+  const v = code.value, s = code.selectionStart, en = code.selectionEnd;
+  const mod = e.ctrlKey || e.metaKey;
+
+  if (mod && e.key === 's') { e.preventDefault(); $('#download').click(); return; }
+  if (mod && e.key === 'Enter') { e.preventDefault(); runCode(); return; }
+  if (mod && e.key === '/') { e.preventDefault(); toggleComment(); return; }
+  if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateLine(); return; }
+  if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+    e.preventDefault(); moveLine(e.key === 'ArrowUp' ? -1 : 1); return;
+  }
+  if (mod || e.altKey || e.isComposing) return;
+
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const multi = v.slice(s, en).includes('\n');
+    if (!multi && !e.shiftKey) { replaceRange(s, en, unit); return; }
+    const [ls, le] = lineBounds();
+    const re = new RegExp('^( {1,' + unit.length + '}|\\t)');
+    const lines = v.slice(ls, le).split('\n');
+    const out = lines.map(l => e.shiftKey ? l.replace(re, '') : (l ? unit + l : l)).join('\n');
+    if (s === en) { const c = Math.max(ls, s + out.length - (le - ls)); replaceRange(ls, le, out, c, c); }
+    else replaceRange(ls, le, out, ls, ls + out.length);
+    return;
+  }
+
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const line = v.slice(v.lastIndexOf('\n', s - 1) + 1, s);
+    const indent = (line.match(/^\s*/) || [''])[0];
+    const prev = v[s - 1], next = v[en];
+    if (s > 0 && '{(['.includes(prev) && PAIRS[prev] === next) {
+      replaceRange(s, en, '\n' + indent + unit + '\n' + indent, s + 1 + indent.length + unit.length);
+    } else {
+      replaceRange(s, en, '\n' + indent + (/[{(\[:]$/.test(line.trimEnd()) ? unit : ''));
+    }
+    return;
+  }
+
+  if (e.key === 'Backspace' && s === en && s > 0 && PAIRS[v[s - 1]] && PAIRS[v[s - 1]] === v[s]) {
+    e.preventDefault(); replaceRange(s - 1, s + 1, ''); return;
+  }
+
+  // skip over an existing closer
+  if (s === en && (')]}"\'`'.includes(e.key) && e.key.length === 1) && v[s] === e.key) {
+    e.preventDefault(); code.setSelectionRange(s + 1, s + 1); updatePos(); return;
+  }
+
+  // auto-close brackets and quotes
+  if (e.key.length === 1 && PAIRS[e.key] && !(lang === 'py' && e.key === '`')) {
+    const k = e.key, close = PAIRS[k], isQuote = k === close;
+    if (s !== en) {                         // wrap selection
+      e.preventDefault();
+      replaceRange(s, en, k + v.slice(s, en) + close, s + 1, en + 1);
+      return;
+    }
+    const before = v[s - 1] || '', after = v[s] || '';
+    if (isQuote && (/\w/.test(before) || /\w/.test(after))) return;
+    if (!isQuote && after && !/[\s)\]}.,;:]/.test(after)) return;
+    e.preventDefault();
+    replaceRange(s, s, k + close, s + 1);
+  }
+});
+
+// ---- extra toolbar features ----
+function setTheme(t) {
+  document.documentElement.dataset.theme = t; store('pw-theme', t);
+  $('#theme').textContent = t === 'dark' ? 'Light' : 'Dark';
+}
+function effectiveTheme() {
+  return document.documentElement.dataset.theme ||
+    (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+}
+$('#theme').onclick = () => setTheme(effectiveTheme() === 'dark' ? 'light' : 'dark');
+if (load('pw-theme')) setTheme(load('pw-theme')); else $('#theme').textContent = effectiveTheme() === 'dark' ? 'Light' : 'Dark';
+
+let fs = +load('pw-fs') || 13;
+function setFs(n) {
+  fs = Math.min(24, Math.max(10, n)); store('pw-fs', String(fs));
+  document.documentElement.style.setProperty('--fs', fs + 'px');
+  $('#fsval').textContent = fs + 'px';
+}
+$('#fs-down').onclick = () => setFs(fs - 1);
+$('#fs-up').onclick = () => setFs(fs + 1);
+setFs(fs);
+
+$('#clear').onclick = () => { code.value = ''; onChange(); code.focus(); };
+
+function openText(name, text) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  setLang(ext === 'py' ? 'py' : ext === 'ts' ? 'ts' : 'js');
+  code.value = text;
+  $('#fname').value = name; store('pw-name-' + lang, name);
+  onChange(); renderCmds();
+  toast('Opened ' + name);
+}
+$('#open').onclick = () => $('#file').click();
+$('#file').onchange = e => {
+  const f = e.target.files[0];
+  if (f) f.text().then(t => openText(f.name, t));
+  e.target.value = '';
+};
+const ed = document.querySelector('.editor');
+ed.addEventListener('dragover', e => { e.preventDefault(); ed.style.outline = '2px dashed var(--accent)'; });
+ed.addEventListener('dragleave', () => ed.style.outline = '');
+ed.addEventListener('drop', e => {
+  e.preventDefault(); ed.style.outline = '';
+  const f = e.dataTransfer.files[0];
+  if (f) f.text().then(t => openText(f.name, t));
+});
+
+// ---- local runner ----
+const HDR = { 'X-PW-Runner': '1', 'Content-Type': 'application/json' };
+let runnerOk = false, running = false, ctrl = null;
+const runState = $('#runstate');
+
+function saveRunPrefs() {
+  store('pw-run', JSON.stringify({ url: $('#runurl').value, browser: $('#runbrowser').value,
+    headed: $('#runheaded').checked, slow: $('#runslow').value }));
+}
+(function loadRunPrefs() {
+  try {
+    const p = JSON.parse(load('pw-run') || '{}');
+    if (p.url) $('#runurl').value = p.url;
+    if (p.browser) $('#runbrowser').value = p.browser;
+    if (p.headed) $('#runheaded').checked = true;
+    if (p.slow) $('#runslow').value = p.slow;
+  } catch (_) {}
+})();
+['#runurl', '#runbrowser', '#runheaded', '#runslow'].forEach(s => $(s).addEventListener('change', saveRunPrefs));
+$('#runurl').addEventListener('input', saveRunPrefs);
+
+function applyDesktop() {
+  // Desktop app: TypeScript first, no Python, use the Edge/Chrome already installed on the PC.
+  $('#lang-py').hidden = true;
+  if (lang === 'py') setLang('ts');
+  if (!load('pw-desktop-init')) { store('pw-desktop-init', '1'); if (lang !== 'ts') setLang('ts'); }
+  const sel = $('#runbrowser');
+  sel.innerHTML = '<option value="msedge">Microsoft Edge</option><option value="chrome">Google Chrome</option>';
+  let p = {}; try { p = JSON.parse(load('pw-run') || '{}'); } catch (_) {}
+  sel.value = ['msedge', 'chrome'].includes(p.browser) ? p.browser : 'msedge';
+  if (!('headed' in p)) $('#runheaded').checked = true;      // first launch: show the browser window
+}
+
+async function checkRunner() {
+  try {
+    const r = await fetch('/api/info', { headers: HDR });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error('no runner');
+    runnerOk = true;
+    if (d.desktop) applyDesktop();
+    const bits = [d.desktop ? 'Desktop app ready' : 'Local runner connected'];
+    bits.push(d.playwright ? 'Playwright ' + d.playwright : 'Playwright missing: run npm install');
+    if (!d.python && !d.desktop) bits.push('Python runner not set up');
+    runState.textContent = bits.join(' · ');
+    runState.className = 'rstate' + (d.playwright ? ' ok' : '');
+  } catch (_) {
+    runnerOk = false;
+    runState.innerHTML = 'Runner offline. In the project folder run <code>node server.js</code>, then open <b>http://localhost:3000</b>.';
+    runState.className = 'rstate';
+  }
+  $('#runbtn').disabled = !runnerOk || running;
+}
+
+function setChip(text, cls) { const c = $('#chip'); c.textContent = text; c.className = 'chip ' + (cls || ''); }
+function appendOut(text) {
+  const o = $('#out');
+  o.textContent += text;
+  if (o.textContent.length > 200000) o.textContent = '…(older output trimmed)…\n' + o.textContent.slice(-150000);
+  o.scrollTop = o.scrollHeight;
+}
+function setRunning(on) {
+  running = on;
+  $('#runbtn').disabled = on || !runnerOk;
+  $('#stopbtn').hidden = !on;
+}
+
+async function runCode() {
+  if (running || !runnerOk) return;
+  const url = $('#runurl').value.trim();
+  $('#outpanel').hidden = false;
+  $('#out').textContent = ''; $('#shots').hidden = true; $('#shots').innerHTML = '';
+  setChip('running…', 'run'); setRunning(true);
+  ctrl = new AbortController();
+  let finalCode = null, stopped = false;
+  $('#stopbtn').onclick = () => { stopped = true; ctrl.abort(); };
+  try {
+    const res = await fetch('/api/run', {
+      method: 'POST', headers: HDR, signal: ctrl.signal,
+      body: JSON.stringify({ code: code.value, lang, url, browser: $('#runbrowser').value,
+        headed: $('#runheaded').checked, slowMo: +$('#runslow').value }),
+    });
+    if (!res.ok) {
+      let msg = 'Request failed'; try { msg = (await res.json()).error || msg; } catch (_) {}
+      appendOut(msg + '\n'); setChip('error', 'fail'); return;
+    }
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = '';
+    const handle = line => {
+      if (!line.trim()) return;
+      let ev; try { ev = JSON.parse(line); } catch (_) { return; }
+      if (ev.type === 'start') appendOut('$ ' + ev.command + '\n\n');
+      else if (ev.type === 'out') appendOut(ev.text);
+      else if (ev.type === 'done') {
+        finalCode = ev.code;
+        const secs = (ev.ms / 1000).toFixed(1) + 's';
+        if (ev.timedOut) setChip('timed out · ' + secs, 'fail');
+        else if (ev.code === 0) setChip('passed · ' + secs, 'pass');
+        else setChip('failed · ' + secs, 'fail');
+        showShots(ev.shots || []);
+      }
+    };
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n'); buf = lines.pop();
+      lines.forEach(handle);
+    }
+    handle(buf);
+    if (finalCode === null) setChip('ended', '');
+  } catch (e) {
+    if (stopped) { appendOut('\nStopped.\n'); setChip('stopped', ''); }
+    else { appendOut('\nLost connection to the runner: ' + e.message + '\n'); setChip('error', 'fail'); checkRunner(); }
+  } finally {
+    setRunning(false); ctrl = null;
+  }
+}
+
+function showShots(list) {
+  const box = $('#shots'); box.innerHTML = '';
+  list.forEach(src => {
+    const a = document.createElement('a'); a.href = src; a.target = '_blank'; a.rel = 'noopener';
+    const img = document.createElement('img'); img.src = src; img.alt = 'Screenshot'; img.loading = 'lazy';
+    const cap = document.createElement('span'); cap.textContent = decodeURIComponent(src.split('/').pop());
+    a.append(img, cap); box.appendChild(a);
+  });
+  box.hidden = !list.length;
+}
+
+$('#runbtn').onclick = runCode;
+$('#outclear').onclick = () => { $('#out').textContent = ''; $('#shots').innerHTML = ''; $('#shots').hidden = true; setChip('idle', ''); };
+$('#goto').onclick = () => {
+  const u = $('#runurl').value.trim();
+  if (!u) { toast('Type a website URL first'); $('#runurl').focus(); return; }
+  insert(lang === 'py' ? 'page.goto("' + u + '")\n' : "await page.goto('" + u + "');\n");
+};
+$('#runurl').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); runCode(); } });
+$('#runbtn').disabled = true;
+checkRunner();
+
+setLang(load('pw-lang') || 'js', true);
+</script>
+</body>
+</html>

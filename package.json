@@ -1,0 +1,30 @@
+{
+  "name": "playwright-editor",
+  "productName": "Playwright Editor",
+  "version": "1.0.0",
+  "description": "Write Playwright tests in TypeScript and run them on your PC",
+  "author": "Your Name",
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "server": "node server.js",
+    "dist": "electron-builder --win --publish never"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.56.0"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.playwrighteditor.app",
+    "productName": "Playwright Editor",
+    "asar": false,
+    "directories": { "output": "dist" },
+    "files": ["main.js", "server.js", "index.html", "package.json", "node_modules/**/*"],
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "artifactName": "Playwright-Editor-Setup-${version}.exe" },
+    "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true }
+  }
+}
